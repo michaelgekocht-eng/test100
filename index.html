@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6b4a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="運転日報">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>運転日報</title>
+<style>
+  :root{
+    --bg:#f3f4f1; --panel:#ffffff; --ink:#1d2421; --sub:#5d6862; --line:#d5d9d3;
+    --go:#1f6b4a; --go-ink:#fff; --warn:#a4380f; --blue:#1d4f8a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#141816; --panel:#1e2421; --ink:#eef2ee; --sub:#9aa69f; --line:#34403a;
+      --go:#3fae7e; --go-ink:#06140d; --warn:#ff9a70; --blue:#7fb2ee; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Hiragino Sans","Yu Gothic UI","Noto Sans JP",sans-serif;font-size:18px;line-height:1.6}
+  html,body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+  body{-webkit-user-select:none;user-select:none}
+  input,pre{-webkit-user-select:text;user-select:text}
+  main{max-width:520px;margin:0 auto;min-height:100dvh;
+    padding:calc(env(safe-area-inset-top) + 16px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 40px) calc(env(safe-area-inset-left) + 16px)}
+  button{touch-action:manipulation;min-height:60px}
+  #net{display:inline-block;font-size:13px;padding:2px 10px;border-radius:99px;border:1px solid var(--line);margin-left:8px}
+  #net.off{color:var(--warn);border-color:var(--warn)}
+  input[type=number]{font-size:32px}
+  h1{font-size:20px;margin:0 0 4px}
+  .meta{color:var(--sub);font-size:14px;margin-bottom:20px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:16px}
+  .msg{font-size:24px;font-weight:700;margin:0 0 12px;line-height:1.4}
+  .note{color:var(--sub);font-size:15px;margin:0 0 12px}
+  label{display:block;font-weight:700;margin-bottom:6px}
+  input[type=number]{width:100%;font-size:28px;padding:12px;border:2px solid var(--line);border-radius:8px;
+    background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums}
+  input[type=number]:focus{outline:3px solid var(--blue);border-color:var(--blue)}
+  button{width:100%;font:inherit;font-size:22px;font-weight:700;padding:18px;border:0;border-radius:10px;
+    background:var(--go);color:var(--go-ink);cursor:pointer;margin-top:12px}
+  button.alt{background:var(--blue);color:#fff}
+  button.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);font-size:18px;padding:12px}
+  button:disabled{opacity:.45;cursor:wait}
+  button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row button{margin-top:12px;font-size:20px;padding:18px 8px}
+  video{width:100%;border-radius:8px;background:#000;aspect-ratio:1/1;object-fit:cover}
+  .err{color:var(--warn);font-weight:700;min-height:1.6em}
+  .status{color:var(--sub);font-size:15px;min-height:1.6em}
+  .log{font-size:14px;color:var(--sub);margin:0;padding:0;list-style:none}
+  .grp{border:2px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:0;background:var(--panel)}
+  .gap{min-height:12px;padding:2px 0}
+  .ins{width:auto;min-height:30px;margin:0;padding:0 16px 0 6px;background:transparent;border:0;border-radius:6px;
+    display:flex;align-items:center;justify-content:flex-start}
+  .tri{display:block;width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;
+    border-left:15px solid var(--blue);transition:transform .15s}
+  .ins[aria-expanded="true"] .tri{transform:rotate(90deg)}
+  .grp.sel{border-color:var(--blue);background:var(--panel);background:color-mix(in srgb, var(--blue) 14%, var(--panel))}
+  .mk{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--blue);font-size:15px;margin-bottom:8px}
+  .mk input{width:26px;height:26px;margin:0;accent-color:var(--blue)}
+  li.mhint{color:var(--blue);font-weight:700;font-size:14px;padding:0 0 10px}
+  .mini{border:2px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:14px;color:var(--ink)}
+  .camBtn{background:transparent;color:var(--blue);border:2px solid var(--blue);font-size:17px;min-height:48px;margin-top:8px}
+  #ocam{aspect-ratio:4/3;object-fit:contain}
+  .seg{background:transparent;color:var(--ink);border:2px solid var(--line)}
+  .seg.on{background:var(--go);color:var(--go-ink);border-color:var(--go)}
+  .rec + .rec{margin-top:10px}
+  .log b{color:var(--ink)}
+  .log button.tag{width:auto;min-height:44px;margin:0 6px 0 0;padding:4px 12px;font-size:16px;border-radius:8px;
+    background:transparent;color:var(--blue);border:1px solid var(--blue);text-decoration:underline}
+  .edit{margin-top:10px;padding:14px;border:2px solid var(--blue);border-radius:10px;color:var(--ink);font-size:16px;background:var(--panel)}
+  .edit label{font-size:14px;margin:10px 0 4px}
+  .edit input,.edit select{width:100%;font:inherit;font-size:18px;padding:10px;border:2px solid var(--line);
+    border-radius:8px;background:var(--bg);color:var(--ink)}
+  .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  #topR{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+  #topR .tr{display:flex}
+  #topR button{width:auto;min-height:30px;margin:0 0 0 6px;padding:3px 8px;font-size:12px;font-weight:600;
+    background:transparent;color:var(--sub);border:1px solid var(--line);border-radius:6px}
+  .mback{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;
+    padding:16px;z-index:10;overflow:auto}
+  .ck{width:100%;border-collapse:collapse;font-size:16px;margin-bottom:8px}
+  .ck td{padding:8px 4px;border-bottom:1px solid var(--line)}
+  .ck td:last-child{text-align:right;white-space:nowrap}
+  .ck button.okb{width:auto;min-height:44px;margin:0;padding:6px 12px;font-size:15px;font-weight:600;
+    background:transparent;color:var(--ink);border:2px solid var(--line)}
+  .ck button.okb.on{background:var(--go);color:var(--go-ink);border-color:var(--go)}
+  #modal2 .mback{z-index:20}
+  .mpanel{width:100%;max-width:480px;margin:0}
+  .edit .del{width:auto;min-height:44px;margin-top:28px;padding:8px 4px;font-size:14px;font-weight:400;
+    background:transparent;color:var(--sub);text-decoration:underline}
+  .edit .row button{font-size:18px;padding:14px 6px}
+  pre{white-space:pre;overflow-x:auto;font-size:12px;background:var(--bg);padding:12px;border-radius:8px;
+    border:1px solid var(--line);max-height:260px}
+</style>
+</head>
+<body>
+<main>
+  <header class="hd"><h1>運転日報<span id="net"></span></h1><div id="topR"></div></header>
+  <div class="meta" id="meta"></div>
+  <div id="view"></div>
+  <ul class="log" id="log"></ul>
+</main>
+<div id="modal"></div>
+<div id="modal2"></div>
+
+<script src="jsQR.js"></script>
+<script>
+"use strict";
+// QRコードに入っている名前(登録済みの名前のみ受け付ける。追加するときはここに足す)
+const MANAGERS = ["中村", "内田レ", "内田ヒ"];
+const KEY = "unten-nippo-v1";
+const view = document.getElementById("view");
+const logEl = document.getElementById("log");
+const metaEl = document.getElementById("meta");
+
+// ---- 状態 ----
+// step: home | inspect | scan | odoStart | arrive | depart | done
+let S = load() || fresh();
+S.rows.forEach(r=>{ if(r.kind==="違法帰庫") r.kind = "帰庫"; });
+function fresh(){ return {step:"home", rows:[], manager:"", vehicle:""}; }
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY)); }catch(e){ return null; } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function updateMeta(){
+  metaEl.textContent = [S.vehicle ? `車両: ${S.vehicle}` : "", S.manager ? `点呼者: ${S.manager}` : ""].filter(Boolean).join(" / ");
+}
+function go(step){ S.step = step; save(); render(); }
+
+const pad = n => String(n).padStart(2,"0");
+function now(){
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function makeRow(kind, o={}){
+  return {kind, time:o.time||now(), odo:o.odo??"", fuel:o.fuel??"", lat:o.lat??"", lng:o.lng??"", addr:o.addr||"", note:o.note||""};
+}
+function addRow(kind, o={}){ S.rows.push(makeRow(kind, o)); save(); }
+
+// ---- 位置情報 ----
+function getPosition(){
+  return new Promise((res, rej)=>{
+    if(!navigator.geolocation) return rej(new Error("位置情報に未対応"));
+    navigator.geolocation.getCurrentPosition(res, rej, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+  });
+}
+// ---- 住所の表記 ----
+// 都道府県・市区名は省略し、町名+丁目の数字だけにする(例: 銀座４)。東京都以外は頭に都道府県の頭文字を付ける(例: 神）大倉山２)
+const PREF_INITIAL = "北青岩宮秋山福茨栃群埼千東神新富石福山長岐静愛三滋京大兵奈和鳥島岡広山徳香愛高福佐長熊大宮鹿沖";   // 都道府県コード01〜47の頭文字
+const KNUM = {"〇":0,"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9};
+function toZen(n){ return String(n).replace(/\d/g, d=>"０１２３４５６７８９"[d]); }
+function chomeNum(t){
+  if(/^[0-9０-９]+$/.test(t)) return Number(t.replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)));
+  const k = t.split("十");
+  if(k.length===2) return (k[0] ? KNUM[k[0]] : 1)*10 + (k[1] ? KNUM[k[1]] : 0);
+  return Number([...t].map(c=>KNUM[c]).join(""));
+}
+function composeAddr(prefIni, town, chome){
+  return (prefIni ? prefIni+"）" : "") + town + (chome ? toZen(chomeNum(chome)) : "");
+}
+function splitChome(name){
+  const m = String(name).match(/^(.+?)([〇一二三四五六七八九十0-9０-９]+)丁目$/);
+  return m ? {town:m[1], chome:m[2]} : {town:String(name), chome:""};
+}
+// 国土地理院の逆ジオコーダー(町名+丁目まで。番地は取らない)
+async function reverseGsi(lat, lng){
+  const r = await fetch(`https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=${lat}&lon=${lng}`);
+  if(!r.ok) throw new Error("住所取得エラー");
+  const res = (await r.json()).results;
+  if(!res || !res.muniCd || !res.lv01Nm) throw new Error("住所なし");
+  const code = Number(String(res.muniCd).slice(0,2));
+  const {town, chome} = splitChome(res.lv01Nm);
+  return composeAddr(code===13 ? "" : PREF_INITIAL[code-1], town, chome);
+}
+// 予備: OpenStreetMap(Nominatim)
+async function reverseNominatim(lat, lng){
+  const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=ja&lat=${lat}&lon=${lng}`);
+  if(!r.ok) throw new Error("住所取得エラー");
+  const j = await r.json(), a = j.address || {};
+  const parts = (j.display_name||"").split(",").map(x=>x.trim());
+  let town = "", chome = "";
+  for(let i=0; i<parts.length; i++){
+    let m = parts[i].match(/^(.+?)([〇一二三四五六七八九十0-9０-９]+)丁目$/);
+    if(m){ town = m[1]; chome = m[2]; break; }
+    m = parts[i].match(/^([〇一二三四五六七八九十0-9０-９]+)丁目$/);
+    if(m && parts[i+1]){ chome = m[1]; town = parts[i+1]; break; }
+  }
+  if(!town) town = a.suburb || a.neighbourhood || a.quarter || a.village || a.town || "";
+  if(!town) throw new Error("住所なし");
+  const st = a.state || a.province || "";
+  return composeAddr(st && st!=="東京都" ? st[0] : "", town, chome);
+}
+async function reverseGeocode(lat, lng){
+  try{ return await reverseGsi(lat, lng); }
+  catch(e){ return await reverseNominatim(lat, lng); }
+}
+async function getPlace(setStatus){
+  setStatus("位置情報を取得中…");
+  let lat="", lng="", addr="";
+  try{
+    const p = await getPosition();
+    lat = p.coords.latitude.toFixed(6); lng = p.coords.longitude.toFixed(6);
+    if(navigator.onLine){
+      setStatus("住所を取得中…");
+      try{ addr = await Promise.race([reverseGeocode(lat, lng), new Promise((_,j)=>setTimeout(j,8000))]); }
+      catch(e){ addr = ""; }
+    }
+  }catch(e){
+    addr = "(位置情報取得失敗)";
+    lat = ""; lng = "";
+  }
+  return {lat, lng, addr};
+}
+
+// ---- QR ----
+let stream=null, scanning=false;
+function stopCamera(){
+  scanning=false;
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+}
+async function startScan(){
+  const video = document.getElementById("cam");
+  const err = document.getElementById("err");
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
+    video.srcObject = stream; video.setAttribute("playsinline",""); await video.play();
+  }catch(e){
+    err.textContent = "カメラを使えません。下のボタンで手動選択してください。";
+    document.getElementById("manual").hidden = false;
+    return;
+  }
+  scanning = true;
+  const cv = document.createElement("canvas"), ctx = cv.getContext("2d", {willReadFrequently:true});
+  const tick = ()=>{
+    if(!scanning) return;
+    if(video.readyState === video.HAVE_ENOUGH_DATA){
+      cv.width = video.videoWidth; cv.height = video.videoHeight;
+      ctx.drawImage(video,0,0,cv.width,cv.height);
+      const img = ctx.getImageData(0,0,cv.width,cv.height);
+      const code = window.jsQR && jsQR(img.data, img.width, img.height);
+      if(code){
+        const v = code.data.trim().normalize("NFKC");
+        if(MANAGERS.includes(v)){ chooseManager(v); return; }
+        err.textContent = `「${v}」は登録されていないQRコードです`;
+      }
+    }
+    requestAnimationFrame(tick);
+  };
+  tick();
+}
+function chooseManager(name){
+  stopCamera();
+  S.manager = name;
+  addRow("出発点呼", {note:`運行管理者・整備管理者(補助者): ${S.manager}`});
+  go("odoStart");
+}
+
+// ---- CSV ----
+function csvText(){
+  const head = ["種別","日時","車両番号","Odoメーター","給油量(L)","緯度","経度","住所","備考"];
+  const esc = v => `"${String(v??"").replace(/"/g,'""')}"`;
+  return [head, ...S.rows.map(r=>[r.kind,r.time,S.vehicle||"",r.odo,r.fuel,r.lat,r.lng,r.addr,r.note])]
+    .map(a=>a.map(esc).join(",")).join("\r\n");
+}
+function csvFile(){
+  const name = `運転日報_${(S.rows[0]?.time||now()).slice(0,10)}.csv`;
+  return new File(["\uFEFF"+csvText()], name, {type:"text/csv"});
+}
+function download(){
+  const f = csvFile(), a = document.createElement("a");
+  a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+async function share(){
+  const f = csvFile();
+  try{
+    if(navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f], title:f.name}); }
+    else if(navigator.share){ await navigator.share({title:f.name, text:csvText()}); }
+    else{ download(); alert("共有に未対応の端末のためダウンロードしました"); }
+  }catch(e){ /* キャンセル */ }
+}
+
+// ---- 描画 ----
+function odoInput(label){
+  return `<label for="odo">${label}</label><input id="odo" type="number" inputmode="numeric" min="0" step="1" placeholder="例: 123456">
+    <button type="button" class="camBtn" data-for="odo">📷 カメラで読み取る</button>`;
+}
+function readOdo(oid="odo", eid="err"){
+  const v = document.getElementById(oid).value.trim();
+  const e = document.getElementById(eid);
+  if(!/^\d+$/.test(v)){ e.textContent = "Odoメーターを数値で入力してください"; return null; }
+  e.textContent = ""; return v;
+}
+// 直前の「到着」(その後に給油だけが続く場合を含む)の位置。なければ -1
+function replaceIdx(){
+  let j = S.rows.length-1; while(j>=0 && S.rows[j].kind==="給油") j--;
+  return (j>=0 && (S.rows[j].kind==="回送で到着" || S.rows[j].kind==="実車で到着")) ? j : -1;
+}
+// 直前に記録したOdo(帰庫のために直前の到着を置き換える場合は、その到着を除く)
+function lastOdo(skipLastArrival){
+  const rows = S.rows.slice();
+  if(skipLastArrival){ const ri = replaceIdx(); if(ri>=0) rows.splice(ri,1); }
+  for(let i=rows.length-1; i>=0; i--){ if(/^\d+$/.test(String(rows[i].odo))) return Number(rows[i].odo); }
+  return null;
+}
+// Odoの確認ダイアログ(かけ離れている/ほとんど変わらない場合)
+function askOdo(msg, prev, odo, inputId, onYes){
+  const m2 = document.getElementById("modal2");
+  m2.innerHTML = `<div class="mback"><div class="panel mpanel" role="alertdialog" aria-modal="true">
+    <p class="msg">${msg}</p>
+    <p class="note">前回: ${prev} km　→　今回: <b>${escH(odo)}</b> km</p>
+    <button id="c-yes">この数値で入力</button>
+    <button id="c-no" class="ghost">やっぱり間違えたので訂正</button></div></div>`;
+  document.getElementById("c-yes").onclick = ()=>{ m2.innerHTML = ""; onYes(); };
+  document.getElementById("c-no").onclick = ()=>{
+    m2.innerHTML = ""; const el = document.getElementById(inputId); if(el){ el.focus(); el.select(); } };
+}
+function place(kind, ids){
+  ids = ids || {odo:"odo", err:"err", status:"status"};
+  const run = async (confirmed)=>{
+    let odo = "";
+    if(kind!=="出発"){
+      odo = readOdo(ids.odo, ids.err);
+      if(odo===null) return;
+      const prev = lastOdo(false);
+      if(prev!==null){
+        const d = Number(odo) - prev;
+        if(d<=0){ document.getElementById(ids.err).textContent = "前回の入力値より大きな値を入力してください"; return; }
+        if(!confirmed && (d>=100 || d<=3)){
+          askOdo(d>=100 ? "前回の入力値からかなりかけ離れていますが、正しいですか？"
+                        : "前回の入力値とあまり変わらないですが、正しいですか？",
+                 prev, odo, ids.odo, ()=>run(true));
+          return;
+        }
+      }
+    }
+    const status = document.getElementById(ids.status);
+    document.querySelectorAll("button").forEach(b=>b.disabled=true);
+    // 「違法帰庫」「違法出庫」ボタンは、記録上の種別は「帰庫」「乗務開始」(位置情報は取得せず固定住所)
+    const FIXED = {"違法帰庫":["帰庫","東小松川２"], "違法出庫":["乗務開始","東小松川２"]};
+    const fx = FIXED[kind], rowKind = fx ? fx[0] : kind;
+    const p = fx ? {lat:"", lng:"", addr:fx[1]}
+                 : await getPlace(t=>{ if(status) status.textContent = t; });
+    addRow(rowKind, {odo, ...p});
+    go(rowKind==="帰庫" ? "done" : (rowKind==="出発"||rowKind==="乗務開始") ? "arrive" : "depart");
+  };
+  return ()=>run(false);
+}
+// 点検表(日常点検の記録とは連動しない、項目一覧のみ。チェックは画面上の目印で、保存もしない)
+const CHECK_ITEMS = ["エンジン（かかり具合・異音）","ブレーキ（踏みしろ・きき具合）","パーキングブレーキ（ひきしろ）",
+  "ワイパー（消耗具合）","ウインドウォッシャー液","方向指示器","ブレーキオイル","ラジエーター・ファンベルト",
+  "エンジンオイル・バッテリー","ライト類","タイヤ（空気圧・消耗・溝）","スペアタイヤ","非常信号用具","車検証"];
+const POST_ITEMS = ["車両の異常","交通事故","忘れ物等","体調の異常"];
+function openCheck(title="点検表", items=CHECK_ITEMS){
+  const m = document.getElementById("modal");
+  m.innerHTML = `<div class="mback"><div class="panel mpanel" role="dialog" aria-modal="true" style="max-height:92dvh;overflow:auto">
+    <p class="msg">${title}</p>
+    <table class="ck">${items.map(t=>`<tr><td>${t}</td><td><button class="okb">異常なし</button></td></tr>`).join("")}</table>
+    <button id="ck-close" class="ghost">閉じる</button></div></div>`;
+  m.querySelectorAll(".okb").forEach(b=>b.onclick=()=>{
+    const on = b.classList.toggle("on"); b.textContent = on ? "✓ 異常なし" : "異常なし"; });
+  document.getElementById("ck-close").onclick = ()=>{ m.innerHTML = ""; };
+}
+// ---- Odoメーターのカメラ読み取り(Tesseract.js。ocr/ フォルダの内容を端末に保存して使うのでオフラインでも動く) ----
+// 1行ごとに判定。「59846km」のように km が付いた4〜6桁を確実な候補、5〜6桁だけの行を弱い候補とする
+function parseOdo(text){
+  const out = [];
+  String(text).split("\n").forEach(line=>{
+    const m = line.match(/(?:^|[^\dA-Za-z.,])(\d{4,6})(?![\d.,])\s*k[mn]/i);
+    if(m){ out.push({v:m[1], strong:true}); return; }
+    const nums = line.match(/\d+/g) || [];
+    if(nums.length===1 && /^\d{5,6}$/.test(nums[0]) && !/[.,]\d|\d[.,]/.test(line)) out.push({v:nums[0], strong:false});
+  });
+  return out;
+}
+let ocrWorker = null, ocrLoading = null;
+function loadScript(src){
+  return new Promise((ok,ng)=>{ const el = document.createElement("script"); el.src = src; el.onload = ok; el.onerror = ()=>ng(new Error("load")); document.head.appendChild(el); });
+}
+async function getOcr(){
+  if(ocrWorker) return ocrWorker;
+  if(!ocrLoading) ocrLoading = (async()=>{
+    if(!window.Tesseract) await loadScript("ocr/tesseract.min.js");
+    const base = new URL("ocr/", location.href).href;   // Workerの中からも読めるよう絶対URLにする
+    ocrWorker = await Tesseract.createWorker("eng", 1, {
+      workerPath: base+"worker.min.js", corePath: base, langPath: base+"lang", gzip: true, workerBlobURL: false, logger: ()=>{} });
+    return ocrWorker;
+  })().catch(e=>{ ocrLoading = null; throw e; });
+  return ocrLoading;
+}
+async function scanOdo(inputId){
+  const m = document.getElementById("modal2");
+  m.innerHTML = `<div class="mback"><div class="panel mpanel" role="dialog" aria-modal="true">
+    <p class="msg" style="font-size:20px">Odoメーターを読み取る</p>
+    <video id="ocam" muted playsinline></video>
+    <p class="status" id="ostat">カメラを起動中…</p>
+    <button id="ocls" class="ghost">閉じる</button></div></div>`;
+  const stat = t => { const e = document.getElementById("ostat"); if(e) e.textContent = t; };
+  let alive = true, stream = null;
+  const close = ()=>{ alive = false; if(stream) stream.getTracks().forEach(t=>t.stop()); m.innerHTML = ""; };
+  document.getElementById("ocls").onclick = close;
+  const video = document.getElementById("ocam");
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment", width:{ideal:1920}, height:{ideal:1080}}, audio:false});
+    if(!alive){ stream.getTracks().forEach(t=>t.stop()); return; }
+    video.srcObject = stream; await video.play();
+  }catch(e){ stat("カメラを使えません。数値を手入力してください。"); return; }
+  stat("読み取りの準備中…(初回は少し時間がかかります)");
+  let worker;
+  try{ worker = await getOcr(); }
+  catch(e){ stat("読み取り機能を読み込めませんでした。数値を手入力してください。"); return; }
+  const cv = document.createElement("canvas"), ctx = cv.getContext("2d", {willReadFrequently:true});
+  const hist = []; let n = 0;
+  while(alive){
+    if(video.readyState < 2){ await new Promise(r=>setTimeout(r,200)); continue; }
+    const sc = Math.min(1, 1280/video.videoWidth);
+    cv.width = Math.round(video.videoWidth*sc); cv.height = Math.round(video.videoHeight*sc);
+    ctx.drawImage(video, 0, 0, cv.width, cv.height);
+    // 白文字(暗い背景)と黒文字(明るい背景)の両方に対応するため、1回おきに白黒反転する
+    const img = ctx.getImageData(0,0,cv.width,cv.height), d = img.data, inv = (n++ % 2 === 1);
+    for(let i=0; i<d.length; i+=4){ let g = (d[i]*299 + d[i+1]*587 + d[i+2]*114)/1000; if(inv) g = 255-g; d[i]=d[i+1]=d[i+2]=g; }
+    ctx.putImageData(img, 0, 0);
+    stat("Odoメーターの数字(例: 59846 km)が大きく映るようにしてください…");
+    let text = "";
+    try{ text = (await worker.recognize(cv)).data.text; }catch(e){ }
+    if(!alive) return;
+    parseOdo(text).forEach(c=>hist.push(c)); while(hist.length>8) hist.shift();
+    // 同じ数値が、確実な候補なら2回、弱い候補なら3回読めたら採用する
+    const cnt = {};
+    hist.forEach(c=>{ const k = c.v; cnt[k] = cnt[k] || {all:0, strong:0}; cnt[k].all++; if(c.strong) cnt[k].strong++; });
+    const hit = Object.keys(cnt).find(k=>cnt[k].strong>=2 || cnt[k].all>=3);
+    if(hit){
+      const el = document.getElementById(inputId);
+      if(el){ el.value = hit; el.dispatchEvent(new Event("input", {bubbles:true})); }
+      if(navigator.vibrate) navigator.vibrate(120);
+      close();
+      const e2 = document.getElementById(inputId); if(e2){ e2.focus(); }
+      return;
+    }
+  }
+}
+
+document.addEventListener("click", e=>{ const b = e.target.closest(".camBtn"); if(b) scanOdo(b.dataset.for); });
+// 給油の記録(Odo・給油量・位置情報)。直前の画面(出発後=到着画面 / 到着後=出発画面)に戻る
+async function recordFuel(){
+  const err = document.getElementById("err");
+  const odo = readOdo("f-odo", "err"); if(odo===null) return;
+  const amt = document.getElementById("f-amt").value.trim();
+  if(!/^\d+(\.\d+)?$/.test(amt) || Number(amt)<=0){ err.textContent = "給油量を数値で入力してください"; return; }
+  const prev = lastOdo(false);
+  if(prev!==null && Number(odo)<prev){ err.textContent = "前回の入力値以上の値を入力してください"; return; }
+  document.querySelectorAll("button").forEach(b=>b.disabled=true);
+  const p = await getPlace(t=>{ document.getElementById("status").textContent = t; });
+  addRow("給油", {odo, fuel:amt, ...p});
+  go(S.fuelFrom || "arrive");
+}
+// 帰庫の確認ダイアログ
+// 直近の「到着」を「帰庫」として流用する(Odoは入力しない)。違法帰庫は住所を固定住所に置き換える
+function reuseArrival(kind){
+  const ri = replaceIdx(); if(ri<0) return;
+  const r = S.rows[ri]; r.kind = "帰庫";
+  if(kind==="違法帰庫"){ r.lat = ""; r.lng = ""; r.addr = "東小松川２"; }
+  save(); go("done");
+}
+function openKiko(kind){
+  const reuse = S.step==="depart" && replaceIdx()>=0;   // 到着の後 → 到着の記録を流用
+  const cur = document.getElementById("odo");
+  document.getElementById("modal").innerHTML = `<div class="mback"><div class="panel mpanel" role="dialog" aria-modal="true">
+    <p class="msg">本当に帰庫するの？</p>
+    ${kind==="違法帰庫" ? '<p class="note">(違法帰庫: 位置情報は取得せず、固定住所を記録します)</p>' : ""}
+    ${reuse ? '<p class="note">直近の「到着」の記録を、帰庫の記録として使います。</p>'
+            : `<label for="m-odo">帰庫時のOdoメーター</label>
+    <input id="m-odo" type="number" inputmode="numeric" min="0" step="1" value="${cur ? escH(cur.value) : ""}">
+    <button type="button" class="camBtn" data-for="m-odo">📷 カメラで読み取る</button>`}
+    <p class="err" id="m-err"></p><p class="status" id="m-status"></p>
+    <button id="m-yes">疲れたので帰庫します</button>
+    <button id="m-no" class="ghost">やっぱりまだ働きます</button></div></div>`;
+  document.getElementById("m-yes").onclick = reuse ? ()=>reuseArrival(kind)
+                                                   : place(kind, {odo:"m-odo", err:"m-err", status:"m-status"});
+  document.getElementById("m-no").onclick = ()=>{ document.getElementById("modal").innerHTML = ""; };
+}
+
+function renderTop(){
+  const st = S.step, top = document.getElementById("topR");
+  const mrg = (st==="arrive"||st==="depart"||st==="done")
+    ? (mergeMode ? `<div class="tr"><button id="mrgX">中止</button><button id="mrgGo"${mergeSel.length<2?" disabled":""}>合体する</button></div>`
+                 : '<div class="tr"><button id="mrg">データの合体</button></div>') : "";
+  top.innerHTML = ((st==="arrive"||st==="depart") ? '<div class="tr"><button id="kiko">帰庫する</button><button id="kiko2">違法帰庫</button></div><div class="tr"><button id="fuel">給油</button></div>'
+                : st==="odoStart" ? '<div class="tr"><button id="deg">違法出庫</button></div>'
+                : st==="done" ? '<div class="tr"><button id="dl">CSVをダウンロード</button></div>' : "") + mrg;
+  const $$ = id => document.getElementById(id);
+  if(st==="arrive"||st==="depart"){
+    $$("kiko").onclick = ()=>openKiko("帰庫");
+    $$("kiko2").onclick = ()=>openKiko("違法帰庫");
+    $$("fuel").onclick = ()=>{ S.fuelFrom = S.step; go("fuel"); };
+  }
+  if(st==="odoStart") $$("deg").onclick = place("違法出庫");
+  if(st==="done") $$("dl").onclick = download;
+  if($$("mrg")) $$("mrg").onclick = ()=>{ mergeMode = true; mergeSel = []; editIdx = null; insPos = null; insMode = null; renderTop(); renderLog(); };
+  if($$("mrgX")){
+    $$("mrgX").onclick = ()=>{ mergeMode = false; mergeSel = []; renderTop(); renderLog(); };
+    $$("mrgGo").onclick = openMerge;
+  }
+}
+function render(){
+  stopCamera();
+  editIdx = null; insPos = null; insMode = null; mergeMode = false; mergeSel = [];
+  const st = S.step;
+  document.getElementById("modal").innerHTML = "";
+  document.getElementById("modal2").innerHTML = "";
+  renderTop();
+  updateMeta();
+  let h = "";
+  if(st==="home"){
+    h = `<div class="panel"><label for="veh" style="font-size:20px">本日の担当車の番号を入力してください</label>
+         <input id="veh" type="number" inputmode="numeric" min="0" step="1" placeholder="例: 12" value="${escH(S.vehicle||"")}">
+         <button id="start" disabled>業務を開始する</button></div>`;
+  }else if(st==="inspect"){
+    h = `<div class="panel"><p class="msg">日常点検をしてください</p>
+         <button id="ok">異常なし</button>
+         <button id="chk" class="ghost">点検表</button></div>`;
+  }else if(st==="scan"){
+    h = `<div class="panel"><p class="msg">点呼を受けてください</p>
+         <p class="note">運行管理者・整備管理者(補助者)のQRコードを読み取ってください。</p>
+         <video id="cam" muted></video><p class="err" id="err"></p>
+         <div id="manual" hidden><div class="row">
+           ${MANAGERS.map(m=>`<button class="ghost" data-m="${m}">${m}</button>`).join("")}
+         </div></div></div>`;
+  }else if(st==="odoStart"){
+    h = `<div class="panel"><p class="msg">乗務を開始してください</p>
+         ${odoInput("開始時Odoメーターを記録してください")}
+         <p class="err" id="err"></p><p class="status" id="status"></p><button id="begin">乗務開始</button></div>`;
+  }else if(st==="arrive"){
+    h = `<div class="panel"><p class="msg">到着</p>
+         ${odoInput("現在のOdoメーター")}
+         <p class="err" id="err"></p><p class="status" id="status"></p>
+         <div class="row"><button id="kaiso">回送で到着</button><button id="jissha" class="alt">実車で到着</button></div></div>`;
+  }else if(st==="depart"){
+    h = `<div class="panel"><p class="msg">次の出発</p>
+         <p class="err" id="err"></p><p class="status" id="status"></p>
+         <button id="dep">出発</button></div>`;
+  }else if(st==="fuel"){
+    h = `<div class="panel"><p class="msg">給油</p>
+         <label for="f-odo">給油時のOdoメーター</label>
+         <input id="f-odo" type="number" inputmode="numeric" min="0" step="1" placeholder="例: 123456">
+         <button type="button" class="camBtn" data-for="f-odo">📷 カメラで読み取る</button>
+         <label for="f-amt" style="margin-top:14px">給油量 (L)</label>
+         <input id="f-amt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="例: 35.5">
+         <p class="err" id="err"></p><p class="status" id="status"></p>
+         <button id="fuelGo">記録する</button>
+         <button id="fuelBack" class="ghost">戻る</button></div>`;
+  }else if(st==="done"){
+    h = `<div class="panel"><p class="msg">お疲れ様でした。終業後点検を実施してください</p>
+         <button id="post" class="alt">終業後点検</button>
+         <p class="note" style="margin-top:16px">今日のデータを運行管理者に共有してください</p>
+         ${S.rows.some(r=>r.lat && !r.addr) ? `<p class="err">住所が未取得の行があります。通信が戻ると自動で補完されます。緯度経度は記録済みです。</p>` : ""}
+         <button id="sh">共有</button>
+         <button id="reset" class="ghost">新しい日報を始める</button></div>`;
+  }
+  view.innerHTML = h;
+  renderLog();
+  bind(st);
+}
+const EDITABLE = ["業務開始","日常点検","出発点呼","乗務開始","出発","回送で到着","実車で到着","帰庫","給油"];
+const HAS_ODO = ["乗務開始","回送で到着","実車で到着","帰庫","給油"];
+const HAS_PLACE = ["乗務開始","出発","回送で到着","実車で到着","帰庫","給油"];
+let editIdx = null, insPos = null, insMode = null, mergeMode = false, mergeSel = [];
+const escH = v => String(v??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function editForm(r){
+  let f = `<div class="edit"><label for="e-time">日時</label>
+    <input id="e-time" type="datetime-local" step="1" value="${escH(r.time.replace(" ","T"))}">`;
+  if(HAS_ODO.includes(r.kind))
+    f += `<label for="e-odo">Odoメーター</label><input id="e-odo" type="number" inputmode="numeric" min="0" step="1" value="${escH(r.odo)}">`;
+  if(r.kind==="給油")
+    f += `<label for="e-fuel">給油量 (L)</label><input id="e-fuel" type="number" inputmode="decimal" min="0" step="0.01" value="${escH(r.fuel)}">`;
+  if(HAS_PLACE.includes(r.kind))
+    f += `<label for="e-addr">住所</label><input id="e-addr" type="text" value="${escH(r.addr)}">
+      <label for="e-lat">緯度</label><input id="e-lat" type="text" inputmode="decimal" value="${escH(r.lat)}">
+      <label for="e-lng">経度</label><input id="e-lng" type="text" inputmode="decimal" value="${escH(r.lng)}">`;
+  if(r.kind==="業務開始")
+    f += `<label for="e-veh">担当車の番号</label><input id="e-veh" type="number" inputmode="numeric" min="0" step="1" value="${escH(S.vehicle||"")}">`;
+  if(r.kind==="出発点呼"){
+    const cur = Object.values(MANAGERS).find(m=>r.note.endsWith(m)) || "";
+    f += `<label for="e-mgr">運行管理者・整備管理者(補助者)</label><select id="e-mgr">
+      ${Object.values(MANAGERS).map(m=>`<option${m===cur?" selected":""}>${m}</option>`).join("")}</select>`;
+  }else{
+    f += `<label for="e-note">備考</label><input id="e-note" type="text" value="${escH(r.note)}">`;
+  }
+  return f + `<p class="err" id="e-err"></p>
+    <div class="row"><button id="e-save">この内容で修正</button><button id="e-cancel" class="ghost">キャンセル</button></div>
+    <button id="e-del" class="del">この記録を消去</button></div>`;
+}
+// 表示用のグループ分け: 準備(業務開始〜出発点呼) / 出発→到着の1組 / 帰庫
+function groupRows(){
+  const g = [];
+  S.rows.forEach((r,i)=>{
+    const last = g[g.length-1], k = r.kind;
+    if(k==="業務開始"||k==="日常点検"||k==="出発点呼"){
+      if(last && last.type==="prep") last.items.push(i); else g.push({type:"prep", items:[i]});
+    }else if(k==="乗務開始"||k==="出発"){
+      g.push({type:"leg", items:[i], open:true});
+    }else if(k==="給油"){
+      // 出発〜到着の間なら同じ枠、到着〜出発の間なら給油だけの独立した枠
+      if(last && last.type==="leg" && last.open) last.items.push(i); else g.push({type:"fuel", items:[i]});
+    }else if(k==="回送で到着"||k==="実車で到着"){
+      if(last && last.type==="leg" && last.open){ last.items.push(i); last.open = false; }
+      else g.push({type:"leg", items:[i], open:false});
+    }else if(k==="帰庫"){
+      if(last && last.type==="leg" && last.open){ last.items.push(i); last.open = false; }
+      else g.push({type:"end", items:[i]});
+    }else{
+      g.push({type:"end", items:[i]});
+    }
+  });
+  return g;
+}
+// ---- データの合体 ----
+// 合体できる組: 出発(乗務開始)から到着(帰庫)まで完結した枠。seg は間に別種の枠が挟まらない連なりの番号
+function isSelLeg(g){
+  if(g.type!=="leg" || g.open) return false;
+  const a = S.rows[g.items[0]].kind, b = S.rows[g.items[g.items.length-1]].kind;
+  return (a==="乗務開始" || a==="出発") && (b==="回送で到着" || b==="実車で到着" || b==="帰庫");
+}
+function legsOf(gs){
+  const legs = []; let seg = 0;
+  gs.forEach(g=>{ if(isSelLeg(g)) legs.push({g, seg}); else if(g.type!=="fuel") seg++; });
+  return legs;
+}
+// 連続した組だけ選べる: 追加は両端の隣のみ、解除は両端のみ
+function mergeAllowed(o, legs){
+  if(!mergeSel.length) return true;
+  const mn = mergeSel[0], mx = mergeSel[mergeSel.length-1];
+  if(legs[o].seg !== legs[mn].seg) return false;
+  return mergeSel.includes(o) ? (o===mn || o===mx) : (o===mn-1 || o===mx+1);
+}
+function openMerge(){
+  const legs = legsOf(groupRows());
+  if(mergeSel.length<2) return;
+  const sel = mergeSel.map(o=>legs[o].g);
+  const line = g => { const a = S.rows[g.items[0]], b = S.rows[g.items[g.items.length-1]];
+    return `<div class="mini">${escH(a.time)} ${escH(a.addr||"(住所なし)")}<br>→ ${escH(b.time)} ${escH(b.addr||"(住所なし)")}${b.odo!==""?` / ${escH(b.odo)} km`:""}</div>`; };
+  const first = S.rows[sel[0].items[0]], lastG = sel[sel.length-1], last = S.rows[lastG.items[lastG.items.length-1]];
+  document.getElementById("modal").innerHTML = `<div class="mback"><div class="panel mpanel" role="dialog" aria-modal="true" style="max-height:92dvh;overflow:auto">
+    <p class="msg">これらの運行を合体します。</p>
+    ${sel.map(line).join("")}
+    <p class="note">合体後: 出発 ${escH(first.addr||"(住所なし)")} → 到着 ${escH(last.addr||"(住所なし)")}</p>
+    <button id="mg-ok">OK</button><button id="mg-no" class="ghost">キャンセル</button></div></div>`;
+  document.getElementById("mg-ok").onclick = ()=>doMerge(sel);
+  document.getElementById("mg-no").onclick = ()=>{ document.getElementById("modal").innerHTML = ""; };
+}
+function doMerge(sel){
+  const keepStart = sel[0].items[0], lastG = sel[sel.length-1], keepEnd = lastG.items[lastG.items.length-1];
+  const del = new Set(), CORE = ["乗務開始","出発","回送で到着","実車で到着","帰庫"];
+  sel.forEach(g=>g.items.forEach(i=>{ if(CORE.includes(S.rows[i].kind) && i!==keepStart && i!==keepEnd) del.add(i); }));
+  const endRow = S.rows[keepEnd];
+  endRow.note = (endRow.note ? endRow.note+" / " : "") + `合体(${sel.length}組)`;
+  S.rows = S.rows.filter((_,i)=>!del.has(i));   // 途中の出発・到着を除く(給油は残す)
+  mergeMode = false; mergeSel = []; save();
+  document.getElementById("modal").innerHTML = "";
+  renderTop(); renderLog();
+}
+function renderLog(){
+  const recHtml = i => {
+    const r = S.rows[i];
+    const tag = (EDITABLE.includes(r.kind) && !mergeMode)
+      ? `<button class="tag" data-i="${i}" aria-expanded="${editIdx===i}">${r.kind}</button>` : `<b>${r.kind}</b>`;
+    return `<div class="rec">${tag} ${r.time}${r.odo!==""?` / ${escH(r.odo)} km`:""}${r.fuel!==undefined&&r.fuel!==""?` / 給油 ${escH(r.fuel)} L`:""}${r.addr?`<br>${escH(r.addr)}`:""}${editIdx===i?editForm(r):""}</div>`;
+  };
+  // 新しい組を上に表示。1組(出発→到着)を四角い枠で囲む
+  const gs = groupRows(), out = [], legs = legsOf(gs), ordOf = new Map(legs.map((L,o)=>[L.g,o]));
+  if(mergeMode) out.push(`<li class="mhint">${legs.length<2 ? "合体できる組が2つ以上ありません" : "合体する組にチェックを入れてください(連続した組のみ選べます)"}</li>`);
+  for(let k=gs.length-1; k>=0; k--){
+    const o = mergeMode ? ordOf.get(gs[k]) : undefined, on = o!==undefined && mergeSel.includes(o);
+    const box = o!==undefined ? `<label class="mk"><input type="checkbox" data-o="${o}"${on?" checked":""}${mergeAllowed(o,legs)?"":" disabled"}>この組を選ぶ</label>` : "";
+    out.push(`<li class="grp${on?" sel":""}">${box}${gs[k].items.map(recHtml).join("")}</li>`);
+    if(k>0){
+      // 枠と枠の間: 移動(出発〜到着)・給油の枠の後ろにだけ、データ挿入用の三角印を出す
+      const prev = gs[k-1], pos = prev.items[prev.items.length-1] + 1, ok = (prev.type==="leg" || prev.type==="fuel") && S.rows[pos-1].kind!=="帰庫" && !mergeMode;
+      out.push(ok ? `<li class="gap"><button class="ins" data-pos="${pos}" aria-expanded="${insPos===pos}" aria-label="この位置にデータを挿入"><span class="tri"></span></button>${insPos===pos ? insertPanel(pos) : ""}</li>`
+                  : `<li class="gap"></li>`);
+    }
+  }
+  logEl.innerHTML = out.join("");
+  logEl.querySelectorAll(".tag").forEach(b=>b.onclick=()=>{
+    const i = Number(b.dataset.i); editIdx = (editIdx===i) ? null : i; insPos = null; insMode = null; renderLog();
+    if(editIdx!==null){ const f=logEl.querySelector(".edit"); if(f) f.scrollIntoView({block:"center",behavior:"smooth"}); }
+  });
+  const sv = document.getElementById("e-save");
+  if(sv){
+    sv.onclick = ()=>saveEdit(editIdx);
+    document.getElementById("e-cancel").onclick = ()=>{ editIdx=null; renderLog(); };
+    document.getElementById("e-del").onclick = ()=>deleteRow(editIdx);
+  }
+  logEl.querySelectorAll(".mk input").forEach(cb=>cb.onchange=()=>{
+    const o = Number(cb.dataset.o);
+    mergeSel = cb.checked ? mergeSel.concat(o) : mergeSel.filter(x=>x!==o);
+    mergeSel.sort((a,b)=>a-b); renderLog(); renderTop();
+  });
+  const gid = id => document.getElementById(id);
+  const focusPanel = ()=>{ const f = logEl.querySelector(".gap .edit"); if(f) f.scrollIntoView({block:"center", behavior:"smooth"}); };
+  logEl.querySelectorAll(".ins").forEach(b=>b.onclick=()=>{
+    const pos = Number(b.dataset.pos); insPos = (insPos===pos) ? null : pos; insMode = null; editIdx = null;
+    renderLog(); if(insPos!==null) focusPanel();
+  });
+  if(gid("i-b-fuel")){
+    gid("i-b-fuel").onclick = ()=>{ insMode = "fuel"; renderLog(); focusPanel(); };
+    gid("i-b-leg").onclick = ()=>{ insMode = "leg"; renderLog(); focusPanel(); };
+    gid("i-close").onclick = ()=>{ insPos = null; renderLog(); };
+  }
+  if(gid("i-save")){
+    gid("i-back").onclick = ()=>{ insMode = null; renderLog(); focusPanel(); };
+    gid("i-save").onclick = saveInsert;
+  }
+  logEl.querySelectorAll(".seg").forEach(b=>b.onclick=()=>{
+    logEl.querySelectorAll(".seg").forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+}
+const ARR = ["回送で到着","実車で到着"];
+const STEP_AFTER = {"業務開始":"inspect","日常点検":"scan","出発点呼":"odoStart","乗務開始":"arrive",
+  "出発":"arrive","回送で到着":"depart","実車で到着":"depart","帰庫":"done"};
+// 「出発」と「到着」は組で消す(乗務開始に続く最初の到着は、到着だけを消す)
+function pairIdx(i){
+  const k = S.rows[i].kind, idx = [i];
+  if(k==="出発"){
+    let j = i+1; while(S.rows[j] && S.rows[j].kind==="給油"){ idx.push(j); j++; }
+    if(S.rows[j] && ARR.includes(S.rows[j].kind)) idx.push(j);
+  }else if(ARR.includes(k)){
+    let j = i-1; const f = [];
+    while(j>=0 && S.rows[j].kind==="給油"){ f.push(j); j--; }
+    if(j>=0 && S.rows[j].kind==="出発") idx.push(j, ...f);
+  }
+  return idx;
+}
+function deleteRow(i){
+  const idx = pairIdx(i);
+  const list = idx.slice().sort((a,b)=>a-b).map(j=>`・${S.rows[j].kind} ${S.rows[j].time}`).join("\n");
+  if(!confirm(`次の記録を消去します。よろしいですか？\n${list}`)) return;
+  S.rows = S.rows.filter((_,j)=>!idx.includes(j));
+  const m = S.rows.slice().reverse().find(r=>r.kind==="出発点呼");
+  S.manager = m ? (Object.values(MANAGERS).find(x=>m.note.endsWith(x)) || "") : "";
+  let li = S.rows.length-1; while(li>=0 && S.rows[li].kind==="給油") li--;
+  const last = S.rows[li];
+  S.step = last ? (STEP_AFTER[last.kind] || "arrive") : "home";
+  editIdx = null; save(); render();
+}
+// ---- 枠と枠の間へのデータ手入力(挿入) ----
+function insertPanel(pos){
+  const tv = ((S.rows[pos-1]||{}).time || now()).replace(" ","T");
+  if(!insMode) return `<div class="edit"><p class="note" style="margin:0">この位置に挿入するデータを選んでください</p>
+    <div class="row"><button id="i-b-fuel">給油</button><button id="i-b-leg" class="alt">出発〜到着</button></div>
+    <button id="i-close" class="del">閉じる</button></div>`;
+  const leg = insMode==="leg";
+  return `<div class="edit"><p class="msg" style="font-size:18px;margin:0">${leg ? "出発〜到着を挿入" : "給油を挿入"}</p>
+    ${leg ? `<label>到着の種類</label><div class="row"><button class="seg" data-v="回送で到着">回送で到着</button><button class="seg" data-v="実車で到着">実車で到着</button></div>` : ""}
+    <label for="i-time">${leg ? "出発日時" : "日時"}</label><input id="i-time" type="datetime-local" step="1" value="${escH(tv)}">
+    ${leg ? `<label for="i-time2">到着日時</label><input id="i-time2" type="datetime-local" step="1" value="${escH(tv)}">` : ""}
+    <label for="i-odo">Odoメーター</label><input id="i-odo" type="number" inputmode="numeric" min="0" step="1">
+    ${leg ? "" : `<label for="i-amt">給油量 (L)</label><input id="i-amt" type="number" inputmode="decimal" min="0" step="0.01">`}
+    <label for="i-addr">${leg ? "住所(到着地)" : "住所"}</label><input id="i-addr" type="text" autocomplete="off">
+    <p class="err" id="i-err"></p>
+    <div class="row"><button id="i-save">この内容で挿入</button><button id="i-back" class="ghost">戻る</button></div></div>`;
+}
+function odoBounds(pos){
+  const f = (start, dir) => { for(let j=start; j>=0 && j<S.rows.length; j+=dir){
+    if(/^\d+$/.test(String(S.rows[j].odo))) return {o:Number(S.rows[j].odo), k:S.rows[j].kind}; } return null; };
+  return {pv:f(pos-1,-1), nx:f(pos,1)};
+}
+function saveInsert(){
+  const pos = insPos, g = id => document.getElementById(id), err = g("i-err"), leg = insMode==="leg";
+  const fix = v => { let t = v.replace("T"," "); if(t.length===16) t += ":00"; return t; };
+  if(!g("i-time").value){ err.textContent = "日時を入力してください"; return; }
+  const time1 = fix(g("i-time").value);
+  let time2 = null, kind = null;
+  if(leg){
+    const on = logEl.querySelector(".seg.on");
+    if(!on){ err.textContent = "回送で到着か実車で到着かを選んでください"; return; }
+    kind = on.dataset.v;
+    if(!g("i-time2").value){ err.textContent = "到着日時を入力してください"; return; }
+    time2 = fix(g("i-time2").value);
+    if(time2 < time1){ err.textContent = "到着日時は出発日時より後にしてください"; return; }
+  }
+  const prevT = (S.rows[pos-1]||{}).time, nextT = (S.rows[pos]||{}).time, lastT = time2 || time1;
+  if((prevT && time1 < prevT) || (nextT && lastT > nextT)){ err.textContent = "日時が前後の記録の間になっていません"; return; }
+  const odo = g("i-odo").value.trim();
+  if(!/^\d+$/.test(odo)){ err.textContent = "Odoメーターを数値で入力してください"; return; }
+  const {pv, nx} = odoBounds(pos), n = Number(odo);
+  if(pv && (leg ? n<=pv.o : n<pv.o)){ err.textContent = "前回の入力値より大きな値を入力してください"; return; }
+  if(nx && ((!leg || nx.k==="給油") ? n>nx.o : n>=nx.o)){ err.textContent = "次の記録の値より小さな値を入力してください"; return; }
+  let amt = "";
+  if(!leg){
+    amt = g("i-amt").value.trim();
+    if(!/^\d+(\.\d+)?$/.test(amt) || Number(amt)<=0){ err.textContent = "給油量を数値で入力してください"; return; }
+  }
+  const addr = g("i-addr").value.trim(), note = "手入力";
+  if(leg) S.rows.splice(pos, 0, makeRow("出発", {time:time1, note}), makeRow(kind, {time:time2, odo, addr, note}));
+  else S.rows.splice(pos, 0, makeRow("給油", {time:time1, odo, fuel:amt, addr, note}));
+  insPos = null; insMode = null; save();
+  if(S.step==="done") render(); else renderLog();
+}
+function saveEdit(i){
+  const r = S.rows[i], err = document.getElementById("e-err"), g = id => document.getElementById(id);
+  let t = g("e-time").value;
+  if(!t){ err.textContent = "日時を入力してください"; return; }
+  t = t.replace("T"," "); if(t.length===16) t += ":00";
+  let odo = r.odo, lat = r.lat, lng = r.lng, addr = r.addr;
+  if(HAS_ODO.includes(r.kind)){
+    odo = g("e-odo").value.trim();
+    if(!/^\d+$/.test(odo)){ err.textContent = "Odoメーターを数値で入力してください"; return; }
+    const near = dir => { for(let j=i+dir; j>=0 && j<S.rows.length; j+=dir){
+      if(/^\d+$/.test(String(S.rows[j].odo))) return {o:Number(S.rows[j].odo), k:S.rows[j].kind}; } return null; };
+    const pv = near(-1), nx = near(1), n = Number(odo);
+    if(pv && (r.kind==="給油" ? n<pv.o : n<=pv.o)){ err.textContent = "前回の入力値より大きな値を入力してください"; return; }
+    if(nx && ((r.kind==="給油"||nx.k==="給油") ? n>nx.o : n>=nx.o)){ err.textContent = "次の記録の値より小さな値を入力してください"; return; }
+  }
+  if(HAS_PLACE.includes(r.kind)){
+    addr = g("e-addr").value.trim(); lat = g("e-lat").value.trim(); lng = g("e-lng").value.trim();
+    if((lat && !/^-?\d+(\.\d+)?$/.test(lat)) || (lng && !/^-?\d+(\.\d+)?$/.test(lng))){
+      err.textContent = "緯度・経度は数値で入力してください"; return; }
+  }
+  if(r.kind==="給油"){
+    const fv = g("e-fuel").value.trim();
+    if(!/^\d+(\.\d+)?$/.test(fv) || Number(fv)<=0){ err.textContent = "給油量を数値で入力してください"; return; }
+    r.fuel = fv;
+  }
+  if(r.kind==="業務開始"){
+    const vv = g("e-veh").value.trim();
+    if(!/^\d+$/.test(vv)){ err.textContent = "担当車の番号を数値で入力してください"; return; }
+    S.vehicle = vv;
+  }
+  r.time = t; r.odo = odo; r.lat = lat; r.lng = lng; r.addr = addr;
+  if(r.kind==="出発点呼"){
+    const m = g("e-mgr").value; r.note = `運行管理者・整備管理者(補助者): ${m}`; S.manager = m;
+  }else{ r.note = g("e-note").value.trim(); }
+  editIdx = null; save();
+  updateMeta();
+  if(S.step==="done") render(); else renderLog();
+}
+const $ = id => document.getElementById(id);
+function bind(st){
+  if(st==="home"){
+    const veh = $("veh"), btn = $("start");
+    const upd = ()=>{ btn.disabled = !/^\d+$/.test(veh.value.trim()); };   // 未入力の間は押せない
+    veh.oninput = upd; upd();
+    btn.onclick = ()=>{ if(btn.disabled) return; S.vehicle = veh.value.trim(); addRow("業務開始"); go("inspect"); };
+  }
+  if(st==="inspect"){
+    $("ok").onclick = ()=>{ addRow("日常点検", {note:"異常なし"}); go("scan"); };
+    $("chk").onclick = ()=>openCheck();
+  }
+  if(st==="scan"){
+    view.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>chooseManager(b.dataset.m));
+    startScan();
+  }
+  if(st==="odoStart") $("begin").onclick = place("乗務開始");
+  if(st==="arrive"){
+    $("kaiso").onclick = place("回送で到着");
+    $("jissha").onclick = place("実車で到着");
+  }
+  if(st==="depart") $("dep").onclick = place("出発");
+  if(st==="fuel"){
+    $("fuelBack").onclick = ()=>go(S.fuelFrom || "arrive");
+    $("fuelGo").onclick = recordFuel;
+  }
+
+  if(st==="done"){
+    $("post").onclick = ()=>openCheck("終業後点検", POST_ITEMS);
+    $("sh").onclick = share;
+    $("reset").onclick = ()=>{ if(confirm("記録を消去して新しく始めますか？ (CSVは保存済みですか？)")){ S=fresh(); save(); render(); } };
+  }
+}
+
+// ---- オフライン対応 ----
+// 住所が未取得の行(緯度経度のみ)は、通信が戻ったときに自動で住所を補完する
+let resolving = false;
+async function resolvePending(){
+  if(resolving || !navigator.onLine) return;
+  const todo = S.rows.filter(r=>r.lat && !r.addr);
+  if(!todo.length) return;
+  resolving = true;
+  for(const r of todo){
+    try{ r.addr = await reverseGeocode(r.lat, r.lng); save(); }catch(e){ break; }
+    await new Promise(ok=>setTimeout(ok,1100)); // 無料サーバーへの負荷配慮
+  }
+  resolving = false;
+  if(editIdx===null && insPos===null){ if(S.step==="done") render(); else renderLog(); }
+}
+function updateNet(){
+  const n = $("net"); if(!n) return;
+  n.textContent = navigator.onLine ? "オンライン" : "オフライン";
+  n.className = navigator.onLine ? "" : "off";
+  if(navigator.onLine) resolvePending();
+}
+window.addEventListener("online", updateNet);
+window.addEventListener("offline", updateNet);
+updateNet();
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+// 乗務中に画面が消えないようにする
+let wl=null;
+async function keepAwake(){ try{ if(S.step!=="home" && S.step!=="done") wl = await navigator.wakeLock.request("screen"); }catch(e){} }
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") keepAwake(); });
+keepAwake();
+render();
+</script>
+</body>
+</html>
